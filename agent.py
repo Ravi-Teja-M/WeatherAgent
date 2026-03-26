@@ -3,10 +3,11 @@ import zoneinfo
 from datetime import datetime
 from google.adk.agents.llm_agent import Agent
 
-def get_weather_and_time(city: str) -> str:
+def get_weather_and_time(city: str) -> dict:
     """
     Fetches the current weather and local time for a given city.
     Automatically handles Daylight Saving Time (DST).
+    Returns a dictionary for GUI use.
     """
     try:
         # 1. Geocode the city to get coordinates and timezone
@@ -14,7 +15,7 @@ def get_weather_and_time(city: str) -> str:
         geo_resp = requests.get(geo_url).json()
 
         if not geo_resp.get('results'):
-            return f"Error: Could not find city: {city}"
+            return {"error": f"Could not find city: {city}"}
 
         result = geo_resp['results'][0]
         lat, lon = result['latitude'], result['longitude']
@@ -25,7 +26,7 @@ def get_weather_and_time(city: str) -> str:
         weather_resp = requests.get(weather_url).json()
 
         if 'current' not in weather_resp:
-            return f"Error: Could not retrieve weather data for {city}."
+            return {"error": f"Could not retrieve weather data for {city}."}
 
         temp = weather_resp['current']['temperature_2m']
         humidity = weather_resp['current']['relative_humidity_2m']
@@ -33,11 +34,17 @@ def get_weather_and_time(city: str) -> str:
         # 3. Get current local time (handles DST automatically via ZoneInfo)
         local_time = datetime.now(zoneinfo.ZoneInfo(timezone_name))
         time_str = local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
-
-        return (f"The current weather in {city} is {temp}°C with {humidity}% humidity. "
-                f"The local time is {time_str}.")
+        
+        return {
+            "city": city,
+            "temperature": temp,
+            "humidity": humidity,
+            "time": time_str,
+            "timezone": timezone_name,
+            "description": f"The current weather in {city} is {temp}°C with {humidity}% humidity. The local time is {time_str}."
+        }
     except Exception as e:
-        return f"An error occurred while fetching data for {city}: {str(e)}"
+        return {"error": f"An error occurred while fetching data for {city}: {str(e)}"}
 
 root_agent = Agent(
     model='gemini-2.5-flash',
